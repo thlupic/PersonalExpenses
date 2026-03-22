@@ -13,7 +13,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
@@ -36,35 +38,105 @@ app.MapGet("/api/lookups/locations", async (LookupService lookupService) =>
 app.MapGet("/api/lookups/expense-types", async (LookupService lookupService) =>
     Results.Ok(await lookupService.GetExpenseTypesAsync()));
 
-app.MapGet("/api/expenses", async (ExpenseStorageService storageService) =>
+app.MapGet("/api/expenses", async (
+    ExpenseStorageService storageService,
+    string? expenseType,
+    string? location,
+    DateTime? dateFrom,
+    DateTime? dateTo) =>
 {
     var items = await storageService.GetAllAsync();
+
+    if (!string.IsNullOrWhiteSpace(expenseType))
+    {
+        items = items
+            .Where(x => string.Equals(x.ExpenseType, expenseType, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    if (!string.IsNullOrWhiteSpace(location))
+    {
+        items = items
+            .Where(x => string.Equals(x.Location, location, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    if (dateFrom.HasValue)
+    {
+        items = items
+            .Where(x => x.Date.Date >= dateFrom.Value.Date)
+            .ToList();
+    }
+
+    if (dateTo.HasValue)
+    {
+        items = items
+            .Where(x => x.Date.Date <= dateTo.Value.Date)
+            .ToList();
+    }
+
     var sorted = items
         .OrderByDescending(x => x.Date)
-        .ThenByDescending(x => x.Id);
+        .ThenByDescending(x => x.Id)
+        .ToList();
 
     return Results.Ok(sorted);
 });
 
+app.MapGet("/api/expenses/{id:long}", async (long id, ExpenseStorageService storageService) =>
+{
+    var item = await storageService.GetByIdAsync(id);
+    return item is null ? Results.NotFound() : Results.Ok(item);
+});
+
 app.MapPost("/api/expenses", async (ExpenseEntry entry, ExpenseStorageService storageService) =>
 {
-    if (string.IsNullOrWhiteSpace(entry.Description))
-        return Results.BadRequest("Description is required.");
-
-    if (string.IsNullOrWhiteSpace(entry.Location))
-        return Results.BadRequest("Location is required.");
-
-    if (string.IsNullOrWhiteSpace(entry.ExpenseType))
-        return Results.BadRequest("ExpenseType is required.");
-
-    if (entry.Quantity <= 0)
-        return Results.BadRequest("Quantity must be greater than 0.");
-
-    if (entry.Amount <= 0)
-        return Results.BadRequest("Amount must be greater than 0.");
+    var validationError = ValidateExpense(entry);
+    if (validationError is not null)
+    {
+        return Results.BadRequest(validationError);
+    }
 
     var saved = await storageService.AddAsync(entry);
     return Results.Created($"/api/expenses/{saved.Id}", saved);
 });
 
+app.MapPut("/api/expenses/{id:long}", async (long id, ExpenseEntry entry, ExpenseStorageService storageService) =>
+{
+    var validationError = ValidateExpense(entry);
+    if (validationError is not null)
+    {
+        return Results.BadRequest(validationError);
+    }
+
+    var updated = await storageService.UpdateAsync(id, entry);
+    return updated is null ? Results.NotFound() : Results.Ok(updated);
+});
+
+app.MapDelete("/api/expenses/{id:long}", async (long id, ExpenseStorageService storageService) =>
+{
+    var deleted = await storageService.DeleteAsync(id);
+    return deleted ? Results.NoContent() : Results.NotFound();
+});
+
 app.Run();
+
+static string? ValidateExpense(ExpenseEntry entry)
+{
+    if (string.IsNullOrWhiteSpace(entry.Description))
+        return "Description is required.";
+
+    if (string.IsNullOrWhiteSpace(entry.Location))
+        return "Location is required.";
+
+    if (string.IsNullOrWhiteSpace(entry.ExpenseType))
+        return "Expense type is required.";
+
+    if (entry.Quantity <= 0)
+        return "Quantity must be greater than 0.";
+
+    if (entry.Amount <= 0)
+        return "Amount must be greater than 0.";
+
+    return null;
+}
