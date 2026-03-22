@@ -1,4 +1,4 @@
-﻿namespace PersonalExpenses.Api.Models;
+﻿namespace PersonalExpenses.Models;
 
 public class ExpenseEntry
 {
