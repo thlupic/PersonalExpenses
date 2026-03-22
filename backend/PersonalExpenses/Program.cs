@@ -1,3 +1,4 @@
+using System.Text.Json;
 using PersonalExpenses.Models;
 using PersonalExpenses.Services;
 
@@ -21,6 +22,22 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+
+        var response = new
+        {
+            error = "An unexpected server error occurred."
+        };
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+    });
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -35,7 +52,7 @@ app.MapGet("/api/lookups/descriptions", async (LookupService lookupService) =>
 app.MapPost("/api/lookups/descriptions", async (LookupValueRequest request, LookupService lookupService) =>
 {
     if (string.IsNullOrWhiteSpace(request.Value))
-        return Results.BadRequest("Value is required.");
+        return Results.BadRequest(new { error = "Value is required." });
 
     var items = await lookupService.AddDescriptionAsync(request.Value);
     return Results.Ok(items);
@@ -44,7 +61,9 @@ app.MapPost("/api/lookups/descriptions", async (LookupValueRequest request, Look
 app.MapDelete("/api/lookups/descriptions/{value}", async (string value, LookupService lookupService) =>
 {
     var deleted = await lookupService.DeleteDescriptionAsync(value);
-    return deleted ? Results.NoContent() : Results.NotFound();
+    return deleted
+        ? Results.NoContent()
+        : Results.NotFound(new { error = "Description not found." });
 });
 
 app.MapGet("/api/lookups/locations", async (LookupService lookupService) =>
@@ -53,7 +72,7 @@ app.MapGet("/api/lookups/locations", async (LookupService lookupService) =>
 app.MapPost("/api/lookups/locations", async (LookupValueRequest request, LookupService lookupService) =>
 {
     if (string.IsNullOrWhiteSpace(request.Value))
-        return Results.BadRequest("Value is required.");
+        return Results.BadRequest(new { error = "Value is required." });
 
     var items = await lookupService.AddLocationAsync(request.Value);
     return Results.Ok(items);
@@ -62,7 +81,9 @@ app.MapPost("/api/lookups/locations", async (LookupValueRequest request, LookupS
 app.MapDelete("/api/lookups/locations/{value}", async (string value, LookupService lookupService) =>
 {
     var deleted = await lookupService.DeleteLocationAsync(value);
-    return deleted ? Results.NoContent() : Results.NotFound();
+    return deleted
+        ? Results.NoContent()
+        : Results.NotFound(new { error = "Location not found." });
 });
 
 app.MapGet("/api/lookups/expense-types", async (LookupService lookupService) =>
@@ -71,7 +92,7 @@ app.MapGet("/api/lookups/expense-types", async (LookupService lookupService) =>
 app.MapPost("/api/lookups/expense-types", async (LookupValueRequest request, LookupService lookupService) =>
 {
     if (string.IsNullOrWhiteSpace(request.Value))
-        return Results.BadRequest("Value is required.");
+        return Results.BadRequest(new { error = "Value is required." });
 
     var items = await lookupService.AddExpenseTypeAsync(request.Value);
     return Results.Ok(items);
@@ -80,7 +101,9 @@ app.MapPost("/api/lookups/expense-types", async (LookupValueRequest request, Loo
 app.MapDelete("/api/lookups/expense-types/{value}", async (string value, LookupService lookupService) =>
 {
     var deleted = await lookupService.DeleteExpenseTypeAsync(value);
-    return deleted ? Results.NoContent() : Results.NotFound();
+    return deleted
+        ? Results.NoContent()
+        : Results.NotFound(new { error = "Expense type not found." });
 });
 
 app.MapGet("/api/expenses", async (
@@ -131,16 +154,16 @@ app.MapGet("/api/expenses", async (
 app.MapGet("/api/expenses/{id:long}", async (long id, ExpenseStorageService storageService) =>
 {
     var item = await storageService.GetByIdAsync(id);
-    return item is null ? Results.NotFound() : Results.Ok(item);
+    return item is null
+        ? Results.NotFound(new { error = "Expense not found." })
+        : Results.Ok(item);
 });
 
 app.MapPost("/api/expenses", async (ExpenseEntry entry, ExpenseStorageService storageService) =>
 {
     var validationError = ValidateExpense(entry);
     if (validationError is not null)
-    {
-        return Results.BadRequest(validationError);
-    }
+        return Results.BadRequest(new { error = validationError });
 
     var saved = await storageService.AddAsync(entry);
     return Results.Created($"/api/expenses/{saved.Id}", saved);
@@ -150,18 +173,20 @@ app.MapPut("/api/expenses/{id:long}", async (long id, ExpenseEntry entry, Expens
 {
     var validationError = ValidateExpense(entry);
     if (validationError is not null)
-    {
-        return Results.BadRequest(validationError);
-    }
+        return Results.BadRequest(new { error = validationError });
 
     var updated = await storageService.UpdateAsync(id, entry);
-    return updated is null ? Results.NotFound() : Results.Ok(updated);
+    return updated is null
+        ? Results.NotFound(new { error = "Expense not found." })
+        : Results.Ok(updated);
 });
 
 app.MapDelete("/api/expenses/{id:long}", async (long id, ExpenseStorageService storageService) =>
 {
     var deleted = await storageService.DeleteAsync(id);
-    return deleted ? Results.NoContent() : Results.NotFound();
+    return deleted
+        ? Results.NoContent()
+        : Results.NotFound(new { error = "Expense not found." });
 });
 
 app.Run();
