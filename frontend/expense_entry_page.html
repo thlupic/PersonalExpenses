@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expense Entry</title>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Expense Entry</h1>
+      <p class="subtitle">
+        JSON files: expenses.json, locations.json, expense_type.json
+      </p>
+
+      <form id="expenseForm">
+
+        <!-- DATE -->
+        <div class="field">
+          <label>Date</label>
+
+          <!-- visible formatted date -->
+          <input type="text" id="dateDisplay" readonly />
+
+          <!-- actual date input -->
+          <input type="date" id="date" name="date" required hidden />
+        </div>
+
+        <!-- DESCRIPTION -->
+        <div class="field full">
+          <label>Description</label>
+          <input type="text"
+                 id="description"
+                 list="descriptionList"
+                 placeholder="Start typing or enter your own value"
+                 required />
+          <datalist id="descriptionList"></datalist>
+        </div>
+
+        <!-- LOCATION -->
+        <div class="field full">
+          <label>Location</label>
+          <input type="text"
+                 id="location"
+                 list="locationList"
+                 placeholder="Start typing or enter your own value"
+                 required />
+          <datalist id="locationList"></datalist>
+        </div>
+
+        <!-- QUANTITY -->
+        <div class="field">
+          <label>Quantity</label>
+          <input type="number"
+                 id="quantity"
+                 step="0.01"
+                 min="0"
+                 placeholder="0.00"
+                 required />
+        </div>
+
+        <!-- EXPENSE TYPE -->
+        <div class="field">
+          <label>Expense Type</label>
+          <select id="expenseType" required>
+            <option value="">Loading...</option>
+          </select>
+        </div>
+
+        <!-- AMOUNT -->
+        <div class="field">
+          <label>Amount</label>
+          <input type="number"
+                 id="amount"
+                 step="0.01"
+                 min="0"
+                 placeholder="0.00"
+                 required />
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="actions">
+          <button type="submit" class="primary">Save</button>
+          <button type="reset" class="secondary">Reset</button>
+        </div>
+      </form>
+
+      <div id="message" class="message"></div>
+      <pre id="output"></pre>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
