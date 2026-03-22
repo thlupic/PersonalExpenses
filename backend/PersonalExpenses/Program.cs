@@ -32,11 +32,56 @@ app.UseCors("Frontend");
 app.MapGet("/api/lookups/descriptions", async (LookupService lookupService) =>
     Results.Ok(await lookupService.GetDescriptionsAsync()));
 
+app.MapPost("/api/lookups/descriptions", async (LookupValueRequest request, LookupService lookupService) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Value))
+        return Results.BadRequest("Value is required.");
+
+    var items = await lookupService.AddDescriptionAsync(request.Value);
+    return Results.Ok(items);
+});
+
+app.MapDelete("/api/lookups/descriptions/{value}", async (string value, LookupService lookupService) =>
+{
+    var deleted = await lookupService.DeleteDescriptionAsync(value);
+    return deleted ? Results.NoContent() : Results.NotFound();
+});
+
 app.MapGet("/api/lookups/locations", async (LookupService lookupService) =>
     Results.Ok(await lookupService.GetLocationsAsync()));
 
+app.MapPost("/api/lookups/locations", async (LookupValueRequest request, LookupService lookupService) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Value))
+        return Results.BadRequest("Value is required.");
+
+    var items = await lookupService.AddLocationAsync(request.Value);
+    return Results.Ok(items);
+});
+
+app.MapDelete("/api/lookups/locations/{value}", async (string value, LookupService lookupService) =>
+{
+    var deleted = await lookupService.DeleteLocationAsync(value);
+    return deleted ? Results.NoContent() : Results.NotFound();
+});
+
 app.MapGet("/api/lookups/expense-types", async (LookupService lookupService) =>
     Results.Ok(await lookupService.GetExpenseTypesAsync()));
+
+app.MapPost("/api/lookups/expense-types", async (LookupValueRequest request, LookupService lookupService) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Value))
+        return Results.BadRequest("Value is required.");
+
+    var items = await lookupService.AddExpenseTypeAsync(request.Value);
+    return Results.Ok(items);
+});
+
+app.MapDelete("/api/lookups/expense-types/{value}", async (string value, LookupService lookupService) =>
+{
+    var deleted = await lookupService.DeleteExpenseTypeAsync(value);
+    return deleted ? Results.NoContent() : Results.NotFound();
+});
 
 app.MapGet("/api/expenses", async (
     ExpenseStorageService storageService,
