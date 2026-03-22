@@ -1,49 +1,43 @@
 ﻿using System.Text.Json;
+using PersonalExpenses.Models;
 
-namespace PersonalExpenses.Api.Services;
+namespace PersonalExpenses.Services;
 
-public class LookupService
+public class ExpenseStorageService
 {
-    private readonly string _dataFolder;
+    private readonly string _filePath;
+    private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
-    public LookupService(IWebHostEnvironment environment)
+    public ExpenseStorageService(IWebHostEnvironment environment)
     {
-        _dataFolder = Path.Combine(environment.ContentRootPath, "Data");
-        Directory.CreateDirectory(_dataFolder);
-    }
+        var dataFolder = Path.Combine(environment.ContentRootPath, "Data");
+        Directory.CreateDirectory(dataFolder);
 
-    public Task<List<string>> GetDescriptionsAsync()
-    {
-        return ReadStringListAsync("expenses.json");
-    }
+        _filePath = Path.Combine(dataFolder, "expense-entries.json");
 
-    public Task<List<string>> GetLocationsAsync()
-    {
-        return ReadStringListAsync("locations.json");
-    }
-
-    public Task<List<string>> GetExpenseTypesAsync()
-    {
-        return ReadStringListAsync("expense-types.json");
-    }
-
-    private async Task<List<string>> ReadStringListAsync(string fileName)
-    {
-        var filePath = Path.Combine(_dataFolder, fileName);
-
-        if (!File.Exists(filePath))
+        if (!File.Exists(_filePath))
         {
-            await File.WriteAllTextAsync(filePath, "[]");
-            return new List<string>();
+            File.WriteAllText(_filePath, "[]");
         }
+    }
 
-        var json = await File.ReadAllTextAsync(filePath);
+    public async Task<List<ExpenseEntry>> GetAllAsync()
+    {
+        var json = await File.ReadAllTextAsync(_filePath);
+        return string.IsNullOrWhiteSpace(json)
+            ? new List<ExpenseEntry>()
+            : JsonSerializer.Deserialize<List<ExpenseEntry>>(json) ?? new List<ExpenseEntry>();
+    }
 
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return new List<string>();
-        }
+    public async Task<ExpenseEntry> AddAsync(ExpenseEntry entry)
+    {
+        var items = await GetAllAsync();
+        entry.Id = items.Count == 0 ? 1 : items.Max(x => x.Id) + 1;
+        items.Add(entry);
 
-        return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+        var json = JsonSerializer.Serialize(items, _jsonOptions);
+        await File.WriteAllTextAsync(_filePath, json);
+
+        return entry;
     }
 }

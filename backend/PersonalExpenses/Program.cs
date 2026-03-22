@@ -1,5 +1,5 @@
-using PersonalExpenses.Api.Models;
-using PersonalExpenses.Api.Services;
+using PersonalExpenses.Models;
+using PersonalExpenses.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

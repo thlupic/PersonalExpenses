@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace PersonalExpenses.Api.Services;
+namespace PersonalExpenses.Services;
 
 public class LookupService
 {
