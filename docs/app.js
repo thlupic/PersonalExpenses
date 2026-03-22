@@ -1,4 +1,7 @@
-const API_BASE_URL = "https://localhost:7058/api";
+const API_BASE_URL =
+  window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL
+    ? window.APP_CONFIG.API_BASE_URL.replace(/\/$/, "")
+    : "/api";
 
 const dateDisplay = document.getElementById("dateDisplay");
 const descriptionList = document.getElementById("descriptionList");
@@ -10,6 +13,10 @@ const output = document.getElementById("output");
 const message = document.getElementById("message");
 
 let datePicker;
+
+function apiUrl(path) {
+  return `${API_BASE_URL}${path}`;
+}
 
 function showMessage(text, type = "info") {
   message.textContent = text;
@@ -42,25 +49,41 @@ function fillSelect(selectElement, items) {
   });
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url);
+async function readErrorResponse(response, fallbackMessage) {
+  try {
+    const contentType = response.headers.get("content-type") || "";
 
-  if (!response.ok) {
-    let errorMessage = `Request failed: ${url} (${response.status})`;
-
-    try {
+    if (contentType.includes("application/json")) {
       const errorData = await response.json();
       if (errorData.error) {
-        errorMessage = errorData.error;
-      }
-    } catch {
-      const text = await response.text();
-      if (text) {
-        errorMessage = text;
+        return errorData.error;
       }
     }
 
+    const text = await response.text();
+    if (text) {
+      return text;
+    }
+  } catch {
+  }
+
+  return fallbackMessage;
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, options);
+
+  if (!response.ok) {
+    const errorMessage = await readErrorResponse(
+      response,
+      `Request failed: ${response.status}`
+    );
+
     throw new Error(errorMessage);
+  }
+
+  if (response.status === 204) {
+    return null;
   }
 
   return response.json();
@@ -69,9 +92,9 @@ async function fetchJson(url) {
 async function loadLookups() {
   try {
     const [descriptions, locations, expenseTypes] = await Promise.all([
-      fetchJson(`${API_BASE_URL}/lookups/descriptions`),
-      fetchJson(`${API_BASE_URL}/lookups/locations`),
-      fetchJson(`${API_BASE_URL}/lookups/expense-types`)
+      fetchJson(apiUrl("/lookups/descriptions")),
+      fetchJson(apiUrl("/lookups/locations")),
+      fetchJson(apiUrl("/lookups/expense-types"))
     ]);
 
     fillDataList(descriptionList, descriptions);
@@ -86,33 +109,13 @@ async function loadLookups() {
 }
 
 async function saveExpense(data) {
-  const response = await fetch(`${API_BASE_URL}/expenses`, {
+  return fetchJson(apiUrl("/expenses"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(data)
   });
-
-  if (!response.ok) {
-    let errorMessage = "Failed to save expense.";
-
-    try {
-      const errorData = await response.json();
-      if (errorData.error) {
-        errorMessage = errorData.error;
-      }
-    } catch {
-      const text = await response.text();
-      if (text) {
-        errorMessage = text;
-      }
-    }
-
-    throw new Error(errorMessage);
-  }
-
-  return response.json();
 }
 
 function initializeDatePicker() {
@@ -131,7 +134,12 @@ function getSelectedDateIso() {
     return null;
   }
 
-  return datePicker.selectedDates[0].toISOString().split("T")[0];
+  const selectedDate = datePicker.selectedDates[0];
+  const year = selectedDate.getFullYear();
+  const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+  const day = String(selectedDate.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 form.addEventListener("submit", async event => {
@@ -160,6 +168,11 @@ form.addEventListener("submit", async event => {
     output.textContent = JSON.stringify(saved, null, 2);
 
     showMessage(`Expense saved successfully with ID ${saved.id}.`, "info");
+    form.reset();
+
+    if (datePicker) {
+      datePicker.setDate(new Date(), true);
+    }
   } catch (error) {
     console.error(error);
     showMessage(`Could not save expense: ${error.message}`, "error");
