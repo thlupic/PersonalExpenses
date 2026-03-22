@@ -1,157 +1,97 @@
-:root {
-  --bg: #f5f7fb;
-  --card: #ffffff;
-  --border: #d9e0ea;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-}
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personal Expenses</title>
+  <link rel="stylesheet" href="styles.css" />
 
-* {
-  box-sizing: border-box;
-  font-family: Arial, sans-serif;
-}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Personal Expenses</h1>
+      <p class="subtitle">Expense entry form</p>
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  padding: 32px 16px;
-}
+      <form id="expenseForm">
+        <div class="field">
+          <label for="dateDisplay">Date</label>
+          <input type="text" id="dateDisplay" name="dateDisplay" required />
+        </div>
 
-.container {
-  max-width: 700px;
-  margin: 0 auto;
-}
+        <div class="field full">
+          <label for="description">Description</label>
+          <input
+            type="text"
+            id="description"
+            name="description"
+            list="descriptionList"
+            placeholder="Start typing or enter your own value"
+            required
+          />
+          <datalist id="descriptionList"></datalist>
+        </div>
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
-}
+        <div class="field full">
+          <label for="location">Location</label>
+          <input
+            type="text"
+            id="location"
+            name="location"
+            list="locationList"
+            placeholder="Start typing or enter your own value"
+            required
+          />
+          <datalist id="locationList"></datalist>
+        </div>
 
-h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-}
+        <div class="field">
+          <label for="quantity">Quantity</label>
+          <input
+            type="number"
+            id="quantity"
+            name="quantity"
+            step="0.01"
+            min="0.01"
+            placeholder="0.00"
+            required
+          />
+        </div>
 
-.subtitle {
-  margin: 0 0 24px;
-  color: var(--muted);
-  font-size: 14px;
-}
+        <div class="field">
+          <label for="expenseType">Expense Type</label>
+          <select id="expenseType" name="expenseType" required>
+            <option value="">Loading...</option>
+          </select>
+        </div>
 
-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-}
+        <div class="field">
+          <label for="amount">Amount</label>
+          <input
+            type="number"
+            id="amount"
+            name="amount"
+            step="0.01"
+            min="0.01"
+            placeholder="0.00"
+            required
+          />
+        </div>
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+        <div class="actions">
+          <button type="submit" class="primary">Save</button>
+          <button type="reset" class="secondary">Reset</button>
+        </div>
+      </form>
 
-.field.full {
-  grid-column: 1 / -1;
-}
+      <div id="message" class="message"></div>
+      <pre id="output"></pre>
+    </div>
+  </div>
 
-label {
-  font-size: 14px;
-  font-weight: 700;
-}
-
-input,
-select {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 15px;
-  outline: none;
-  background: #fff;
-}
-
-input:focus,
-select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-}
-
-.actions {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-button {
-  border: none;
-  border-radius: 10px;
-  padding: 12px 18px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.primary {
-  background: var(--accent);
-  color: white;
-}
-
-.primary:hover {
-  background: var(--accent-hover);
-}
-
-.secondary {
-  background: #e5e7eb;
-  color: var(--text);
-}
-
-.message {
-  margin-top: 18px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  font-size: 14px;
-  display: none;
-}
-
-.message.info {
-  display: block;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1e40af;
-}
-
-.message.error {
-  display: block;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
-}
-
-pre {
-  margin-top: 20px;
-  background: #111827;
-  color: #f9fafb;
-  padding: 16px;
-  border-radius: 12px;
-  overflow-x: auto;
-  font-size: 13px;
-  display: none;
-}
-
-@media (max-width: 700px) {
-  form {
-    grid-template-columns: 1fr;
-  }
-
-  .field.full,
-  .actions {
-    grid-column: auto;
-  }
-}
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/default.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

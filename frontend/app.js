@@ -1,8 +1,6 @@
-const API_BASE_URL = "http://localhost:5180/api";
+const API_BASE_URL = "https://localhost:7058/api";
 
-const dateInput = document.getElementById("date");
 const dateDisplay = document.getElementById("dateDisplay");
-
 const descriptionList = document.getElementById("descriptionList");
 const locationList = document.getElementById("locationList");
 const expenseTypeSelect = document.getElementById("expenseType");
@@ -11,21 +9,7 @@ const form = document.getElementById("expenseForm");
 const output = document.getElementById("output");
 const message = document.getElementById("message");
 
-function formatDateToDisplay(isoDate) {
-  const [year, month, day] = isoDate.split("-");
-  return `${day}/${month}/${year}`;
-}
-
-function setToday() {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, "0");
-  const dd = String(today.getDate()).padStart(2, "0");
-
-  const isoDate = `${yyyy}-${mm}-${dd}`;
-  dateInput.value = isoDate;
-  dateDisplay.value = formatDateToDisplay(isoDate);
-}
+let datePicker;
 
 function showMessage(text, type = "info") {
   message.textContent = text;
@@ -62,7 +46,21 @@ async function fetchJson(url) {
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${url} (${response.status})`);
+    let errorMessage = `Request failed: ${url} (${response.status})`;
+
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      const text = await response.text();
+      if (text) {
+        errorMessage = text;
+      }
+    }
+
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -83,7 +81,7 @@ async function loadLookups() {
     showMessage("Lookup data loaded successfully.", "info");
   } catch (error) {
     console.error(error);
-    showMessage(error.message, "error");
+    showMessage(`Could not load lookup data: ${error.message}`, "error");
   }
 }
 
@@ -97,33 +95,57 @@ async function saveExpense(data) {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || "Failed to save expense.");
+    let errorMessage = "Failed to save expense.";
+
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      const text = await response.text();
+      if (text) {
+        errorMessage = text;
+      }
+    }
+
+    throw new Error(errorMessage);
   }
 
   return response.json();
 }
 
-dateDisplay.addEventListener("click", () => {
-  if (typeof dateInput.showPicker === "function") {
-    dateInput.showPicker();
-  } else {
-    dateInput.focus();
-    dateInput.click();
-  }
-});
+function initializeDatePicker() {
+  datePicker = flatpickr("#dateDisplay", {
+    dateFormat: "d/m/Y",
+    defaultDate: "today",
+    allowInput: false,
+    locale: {
+      firstDayOfWeek: 1
+    }
+  });
+}
 
-dateInput.addEventListener("change", () => {
-  if (dateInput.value) {
-    dateDisplay.value = formatDateToDisplay(dateInput.value);
+function getSelectedDateIso() {
+  if (!datePicker || !datePicker.selectedDates || datePicker.selectedDates.length === 0) {
+    return null;
   }
-});
+
+  return datePicker.selectedDates[0].toISOString().split("T")[0];
+}
 
 form.addEventListener("submit", async event => {
   event.preventDefault();
 
+  const isoDate = getSelectedDateIso();
+
+  if (!isoDate) {
+    showMessage("Date is required.", "error");
+    return;
+  }
+
   const data = {
-    date: dateInput.value,
+    date: isoDate,
     description: document.getElementById("description").value.trim(),
     location: document.getElementById("location").value.trim(),
     quantity: parseFloat(document.getElementById("quantity").value),
@@ -140,18 +162,21 @@ form.addEventListener("submit", async event => {
     showMessage(`Expense saved successfully with ID ${saved.id}.`, "info");
   } catch (error) {
     console.error(error);
-    showMessage(error.message, "error");
+    showMessage(`Could not save expense: ${error.message}`, "error");
   }
 });
 
 form.addEventListener("reset", () => {
   setTimeout(() => {
-    setToday();
+    if (datePicker) {
+      datePicker.setDate(new Date(), true);
+    }
+
     output.style.display = "none";
     output.textContent = "";
     showMessage("Form reset.", "info");
   }, 0);
 });
 
-setToday();
+initializeDatePicker();
 loadLookups();
