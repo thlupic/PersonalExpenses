@@ -40,4 +40,10 @@ public class ExpenseStorageService
 
         return entry;
     }
+
+    public async Task SaveAllAsync(List<ExpenseEntry> items)
+    {
+        var json = JsonSerializer.Serialize(items, _jsonOptions);
+        await File.WriteAllTextAsync(_filePath, json);
+    }
 }
