@@ -404,3 +404,4 @@ FodyWeavers.xsd
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudio
 /backend/PersonalExpenses/Data/expense-entries.json
+/backend/PersonalExpenses/personalexpenses-491020-dcfabe6d424a.json
