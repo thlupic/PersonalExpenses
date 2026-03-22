@@ -1,3 +1,5 @@
+const API_BASE_URL = "http://localhost:5180/api";
+
 const dateInput = document.getElementById("date");
 const dateDisplay = document.getElementById("dateDisplay");
 
@@ -6,15 +8,11 @@ const locationList = document.getElementById("locationList");
 const expenseTypeSelect = document.getElementById("expenseType");
 
 const form = document.getElementById("expenseForm");
-const message = document.getElementById("message");
 const output = document.getElementById("output");
+const message = document.getElementById("message");
 
-const API_URL = "http://localhost:5180/api/expenses";
-
-/* ---------------- DATE HANDLING ---------------- */
-
-function formatDateToDisplay(dateString) {
-  const [year, month, day] = dateString.split("-");
+function formatDateToDisplay(isoDate) {
+  const [year, month, day] = isoDate.split("-");
   return `${day}/${month}/${year}`;
 }
 
@@ -24,101 +22,73 @@ function setToday() {
   const mm = String(today.getMonth() + 1).padStart(2, "0");
   const dd = String(today.getDate()).padStart(2, "0");
 
-  const iso = `${yyyy}-${mm}-${dd}`;
-  dateInput.value = iso;
-  dateDisplay.value = formatDateToDisplay(iso);
+  const isoDate = `${yyyy}-${mm}-${dd}`;
+  dateInput.value = isoDate;
+  dateDisplay.value = formatDateToDisplay(isoDate);
 }
-
-dateDisplay.addEventListener("click", () => {
-  dateInput.showPicker(); // opens native picker
-});
-
-dateInput.addEventListener("change", () => {
-  dateDisplay.value = formatDateToDisplay(dateInput.value);
-});
-
-/* ---------------- UI HELPERS ---------------- */
 
 function showMessage(text, type = "info") {
   message.textContent = text;
   message.className = `message ${type}`;
 }
 
-/* ---------------- JSON LOADING ---------------- */
-
-function normalizeArray(data) {
-  if (Array.isArray(data)) return data;
-  if (data && Array.isArray(data.items)) return data.items;
-  return [];
-}
-
-function fillDataList(element, items) {
-  element.innerHTML = "";
+function fillDataList(dataListElement, items) {
+  dataListElement.innerHTML = "";
 
   items.forEach(item => {
     const option = document.createElement("option");
-    option.value = typeof item === "string"
-      ? item
-      : item.name ?? item.value ?? "";
-
-    if (option.value) element.appendChild(option);
+    option.value = item;
+    dataListElement.appendChild(option);
   });
 }
 
-function fillSelect(element, items) {
-  element.innerHTML = '<option value="">Select...</option>';
+function fillSelect(selectElement, items) {
+  selectElement.innerHTML = "";
+
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = "Select expense type";
+  selectElement.appendChild(defaultOption);
 
   items.forEach(item => {
-    const value = typeof item === "string"
-      ? item
-      : item.name ?? item.value ?? "";
-
-    if (!value) return;
-
     const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
-    element.appendChild(option);
+    option.value = item;
+    option.textContent = item;
+    selectElement.appendChild(option);
   });
 }
 
-async function loadJson(file) {
-  const res = await fetch(file);
+async function fetchJson(url) {
+  const response = await fetch(url);
 
-  if (!res.ok) {
-    throw new Error(`Failed to load ${file} - HTTP ${res.status}`);
+  if (!response.ok) {
+    throw new Error(`Request failed: ${url} (${response.status})`);
   }
 
-  try {
-    return await res.json();
-  } catch (error) {
-    throw new Error(`Invalid JSON in ${file}`);
-  }
+  return response.json();
 }
 
 async function loadLookups() {
   try {
-    const [expenses, locations, types] = await Promise.all([
-      loadJson("expenses.json"),
-      loadJson("locations.json"),
-      loadJson("expense_type.json")
+    const [descriptions, locations, expenseTypes] = await Promise.all([
+      fetchJson(`${API_BASE_URL}/lookups/descriptions`),
+      fetchJson(`${API_BASE_URL}/lookups/locations`),
+      fetchJson(`${API_BASE_URL}/lookups/expense-types`)
     ]);
 
-    fillDataList(descriptionList, normalizeArray(expenses));
-    fillDataList(locationList, normalizeArray(locations));
-    fillSelect(expenseTypeSelect, normalizeArray(types));
+    fillDataList(descriptionList, descriptions);
+    fillDataList(locationList, locations);
+    fillSelect(expenseTypeSelect, expenseTypes);
 
-    showMessage("Lookups loaded.");
-  } catch (err) {
-	  console.error(err);
-	  showMessage(err.message, "error");
+    showMessage("Lookup data loaded successfully.", "info");
+  } catch (error) {
+    console.error(error);
+    showMessage(error.message, "error");
   }
 }
 
-/* ---------------- API ---------------- */
-
 async function saveExpense(data) {
-  const res = await fetch(API_URL, {
+  const response = await fetch(`${API_BASE_URL}/expenses`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -126,19 +96,36 @@ async function saveExpense(data) {
     body: JSON.stringify(data)
   });
 
-  if (!res.ok) throw new Error("Save failed");
-  return res.json();
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "Failed to save expense.");
+  }
+
+  return response.json();
 }
 
-/* ---------------- FORM ---------------- */
+dateDisplay.addEventListener("click", () => {
+  if (typeof dateInput.showPicker === "function") {
+    dateInput.showPicker();
+  } else {
+    dateInput.focus();
+    dateInput.click();
+  }
+});
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
+dateInput.addEventListener("change", () => {
+  if (dateInput.value) {
+    dateDisplay.value = formatDateToDisplay(dateInput.value);
+  }
+});
+
+form.addEventListener("submit", async event => {
+  event.preventDefault();
 
   const data = {
-    date: dateInput.value, // ISO sent to backend
-    description: document.getElementById("description").value,
-    location: document.getElementById("location").value,
+    date: dateInput.value,
+    description: document.getElementById("description").value.trim(),
+    location: document.getElementById("location").value.trim(),
     quantity: parseFloat(document.getElementById("quantity").value),
     expenseType: expenseTypeSelect.value,
     amount: parseFloat(document.getElementById("amount").value)
@@ -150,9 +137,10 @@ form.addEventListener("submit", async (e) => {
     output.style.display = "block";
     output.textContent = JSON.stringify(saved, null, 2);
 
-    showMessage(`Saved (ID: ${saved.id})`);
-  } catch {
-    showMessage("Save failed", "error");
+    showMessage(`Expense saved successfully with ID ${saved.id}.`, "info");
+  } catch (error) {
+    console.error(error);
+    showMessage(error.message, "error");
   }
 });
 
@@ -161,11 +149,9 @@ form.addEventListener("reset", () => {
     setToday();
     output.style.display = "none";
     output.textContent = "";
-    showMessage("Form reset");
+    showMessage("Form reset.", "info");
   }, 0);
 });
-
-/* ---------------- INIT ---------------- */
 
 setToday();
 loadLookups();
