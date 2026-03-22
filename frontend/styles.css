@@ -73,12 +73,18 @@ select {
   border-radius: 10px;
   font-size: 15px;
   outline: none;
+  background: #fff;
 }
 
 input:focus,
 select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+#dateDisplay {
+  cursor: pointer;
+  background: #fff;
 }
 
 .actions {
@@ -108,6 +114,7 @@ button {
 
 .secondary {
   background: #e5e7eb;
+  color: var(--text);
 }
 
 .message {
@@ -138,5 +145,23 @@ pre {
   color: #f9fafb;
   padding: 16px;
   border-radius: 12px;
+  overflow-x: auto;
+  font-size: 13px;
   display: none;
+}
+
+@media (max-width: 700px) {
+  form {
+    grid-template-columns: 1fr;
+  }
+
+  .field.full,
+  .actions {
+    grid-column: auto;
+  }
+}
+
+#dateDisplay {
+  cursor: pointer;
+  background: #fff;
 }
