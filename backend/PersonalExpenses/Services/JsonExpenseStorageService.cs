@@ -3,7 +3,7 @@ using PersonalExpenses.Models;
 
 namespace PersonalExpenses.Services;
 
-public class ExpenseStorageService
+public class JsonExpenseStorageService : IExpenseStorageService
 {
     private readonly string _filePath;
     private readonly JsonSerializerOptions _jsonOptions = new()
@@ -11,7 +11,7 @@ public class ExpenseStorageService
         WriteIndented = true
     };
 
-    public ExpenseStorageService(IWebHostEnvironment environment)
+    public JsonExpenseStorageService(IWebHostEnvironment environment)
     {
         var dataFolder = Path.Combine(environment.ContentRootPath, "Data");
         Directory.CreateDirectory(dataFolder);

@@ -7,8 +7,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddSingleton<LookupService>();
-builder.Services.AddSingleton<ExpenseStorageService>();
+builder.Services.Configure<GoogleSheetsOptions>(
+    builder.Configuration.GetSection("GoogleSheets"));
+
+builder.Services.AddSingleton<ILookupStorageService, GoogleSheetsLookupStorageService>();
+
+var storageProvider = builder.Configuration["StorageProvider"];
+
+if (string.Equals(storageProvider, "GoogleSheets", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IExpenseStorageService, GoogleSheetsExpenseStorageService>();
+}
+else
+{
+    builder.Services.AddSingleton<IExpenseStorageService, JsonExpenseStorageService>();
+}
 
 builder.Services.AddCors(options =>
 {
@@ -29,12 +42,10 @@ app.UseExceptionHandler(errorApp =>
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         context.Response.ContentType = "application/json";
 
-        var response = new
+        await context.Response.WriteAsJsonAsync(new
         {
             error = "An unexpected server error occurred."
-        };
-
-        await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+        });
     });
 });
 
@@ -46,68 +57,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("Frontend");
 
-app.MapGet("/api/lookups/descriptions", async (LookupService lookupService) =>
-    Results.Ok(await lookupService.GetDescriptionsAsync()));
-
-app.MapPost("/api/lookups/descriptions", async (LookupValueRequest request, LookupService lookupService) =>
-{
-    if (string.IsNullOrWhiteSpace(request.Value))
-        return Results.BadRequest(new { error = "Value is required." });
-
-    var items = await lookupService.AddDescriptionAsync(request.Value);
-    return Results.Ok(items);
-});
-
-app.MapDelete("/api/lookups/descriptions/{value}", async (string value, LookupService lookupService) =>
-{
-    var deleted = await lookupService.DeleteDescriptionAsync(value);
-    return deleted
-        ? Results.NoContent()
-        : Results.NotFound(new { error = "Description not found." });
-});
-
-app.MapGet("/api/lookups/locations", async (LookupService lookupService) =>
-    Results.Ok(await lookupService.GetLocationsAsync()));
-
-app.MapPost("/api/lookups/locations", async (LookupValueRequest request, LookupService lookupService) =>
-{
-    if (string.IsNullOrWhiteSpace(request.Value))
-        return Results.BadRequest(new { error = "Value is required." });
-
-    var items = await lookupService.AddLocationAsync(request.Value);
-    return Results.Ok(items);
-});
-
-app.MapDelete("/api/lookups/locations/{value}", async (string value, LookupService lookupService) =>
-{
-    var deleted = await lookupService.DeleteLocationAsync(value);
-    return deleted
-        ? Results.NoContent()
-        : Results.NotFound(new { error = "Location not found." });
-});
-
-app.MapGet("/api/lookups/expense-types", async (LookupService lookupService) =>
-    Results.Ok(await lookupService.GetExpenseTypesAsync()));
-
-app.MapPost("/api/lookups/expense-types", async (LookupValueRequest request, LookupService lookupService) =>
-{
-    if (string.IsNullOrWhiteSpace(request.Value))
-        return Results.BadRequest(new { error = "Value is required." });
-
-    var items = await lookupService.AddExpenseTypeAsync(request.Value);
-    return Results.Ok(items);
-});
-
-app.MapDelete("/api/lookups/expense-types/{value}", async (string value, LookupService lookupService) =>
-{
-    var deleted = await lookupService.DeleteExpenseTypeAsync(value);
-    return deleted
-        ? Results.NoContent()
-        : Results.NotFound(new { error = "Expense type not found." });
-});
-
 app.MapGet("/api/expenses", async (
-    ExpenseStorageService storageService,
+    IExpenseStorageService storageService,
     string? expenseType,
     string? location,
     DateTime? dateFrom,
@@ -151,7 +102,7 @@ app.MapGet("/api/expenses", async (
     return Results.Ok(sorted);
 });
 
-app.MapGet("/api/expenses/{id:long}", async (long id, ExpenseStorageService storageService) =>
+app.MapGet("/api/expenses/{id:long}", async (long id, IExpenseStorageService storageService) =>
 {
     var item = await storageService.GetByIdAsync(id);
     return item is null
@@ -159,7 +110,7 @@ app.MapGet("/api/expenses/{id:long}", async (long id, ExpenseStorageService stor
         : Results.Ok(item);
 });
 
-app.MapPost("/api/expenses", async (ExpenseEntry entry, ExpenseStorageService storageService) =>
+app.MapPost("/api/expenses", async (ExpenseEntry entry, IExpenseStorageService storageService) =>
 {
     var validationError = ValidateExpense(entry);
     if (validationError is not null)
@@ -169,7 +120,7 @@ app.MapPost("/api/expenses", async (ExpenseEntry entry, ExpenseStorageService st
     return Results.Created($"/api/expenses/{saved.Id}", saved);
 });
 
-app.MapPut("/api/expenses/{id:long}", async (long id, ExpenseEntry entry, ExpenseStorageService storageService) =>
+app.MapPut("/api/expenses/{id:long}", async (long id, ExpenseEntry entry, IExpenseStorageService storageService) =>
 {
     var validationError = ValidateExpense(entry);
     if (validationError is not null)
@@ -181,13 +132,22 @@ app.MapPut("/api/expenses/{id:long}", async (long id, ExpenseEntry entry, Expens
         : Results.Ok(updated);
 });
 
-app.MapDelete("/api/expenses/{id:long}", async (long id, ExpenseStorageService storageService) =>
+app.MapDelete("/api/expenses/{id:long}", async (long id, IExpenseStorageService storageService) =>
 {
     var deleted = await storageService.DeleteAsync(id);
     return deleted
         ? Results.NoContent()
         : Results.NotFound(new { error = "Expense not found." });
 });
+
+app.MapGet("/api/lookups/descriptions", async (ILookupStorageService lookupStorageService) =>
+    Results.Ok(await lookupStorageService.GetDescriptionsAsync()));
+
+app.MapGet("/api/lookups/locations", async (ILookupStorageService lookupStorageService) =>
+    Results.Ok(await lookupStorageService.GetLocationsAsync()));
+
+app.MapGet("/api/lookups/expense-types", async (ILookupStorageService lookupStorageService) =>
+    Results.Ok(await lookupStorageService.GetExpenseTypesAsync()));
 
 app.Run();
 
